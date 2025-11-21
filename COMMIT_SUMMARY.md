@@ -70,3 +70,11 @@ feat: add farm visit context system prompt to chatbot
 
 **The chatbot is now tuned for agricultural field visits!**
 
+
+
+
+
+
+
+
+

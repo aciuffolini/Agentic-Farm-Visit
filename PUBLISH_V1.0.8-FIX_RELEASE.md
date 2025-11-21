@@ -68,3 +68,11 @@ After publishing:
 - [ ] Verify `/releases/latest` shows v1.0.8-fix
 - [ ] Test download button works
 
+
+
+
+
+
+
+
+

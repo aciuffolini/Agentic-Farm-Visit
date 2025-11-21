@@ -34,6 +34,25 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "   ❌ Build failed! Check the error above." -ForegroundColor Red
     exit 1
 }
+
+# Verify build doesn't include service worker
+Write-Host "   Verifying build (checking for service worker files)..." -ForegroundColor Gray
+if (Test-Path "dist\sw.js" -Or Test-Path "dist\registerSW.js") {
+    Write-Host "   ❌ ERROR: Service worker files found! Build used wrong command." -ForegroundColor Red
+    Write-Host "   This means the build will have caching issues on Android." -ForegroundColor Red
+    exit 1
+}
+Write-Host "   ✓ Build verified: No service worker files (correct)" -ForegroundColor Green
+
+# Check if model selector code is in build
+Write-Host "   Checking for model selector feature..." -ForegroundColor Gray
+$hasModelSelector = Select-String -Path "dist\*.js" -Pattern "model-selector|Model Selection|🤖 Auto" -Quiet
+if ($hasModelSelector) {
+    Write-Host "   ✓ Model selector feature found in build" -ForegroundColor Green
+} else {
+    Write-Host "   ⚠️  Model selector code not found (may be minified - this is OK)" -ForegroundColor Yellow
+}
+
 Write-Host "   ✓ Web build complete`n" -ForegroundColor Green
 
 # Step 5: Sync with Capacitor

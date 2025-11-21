@@ -342,3 +342,8 @@ After fixes:
 - ✅ Deployment succeeds
 - ✅ Site accessible at `https://aciuffolini.github.io/Agentic-Farm-Visit/`
 
+
+
+
+
+

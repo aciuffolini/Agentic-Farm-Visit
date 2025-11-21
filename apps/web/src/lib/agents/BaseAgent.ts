@@ -34,7 +34,9 @@ export abstract class BaseAgent {
       return null; // Not for this agent
     }
 
-    if (message.type === "request") {
+    const isTaskRequest = message.type === "request" || message.type === "delegation";
+
+    if (isTaskRequest) {
       try {
         const result = await this.execute(message.task, message.payload, message.metadata as AgentContext || {});
         

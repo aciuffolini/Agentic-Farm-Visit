@@ -1,13 +1,111 @@
 /**
- * Chat Drawer Component - SIMPLIFIED VERSION
- * Just makes the chatbot work - minimal implementation
+ * Chat Drawer Component
+ * Supports offline (Gemini Nano/Llama) and cloud (GPT-4o/Claude) models.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChatMessage } from '@farm-visit/shared';
-import { simpleLLM } from '../lib/llm/SimpleLLM';
+import { llmProvider } from '../lib/llm/LLMProvider';
+import type { ModelOption, LLMInput, LLMProviderStats } from '../lib/llm/LLMProvider';
 import { getUserApiKey, setUserApiKey } from '../lib/config/userKey';
+
+const MODEL_STORAGE_KEY = 'farm_visit_chat_model';
+
+const MODEL_OPTIONS: Array<{
+  value: ModelOption;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'auto',
+    label: 'Auto (offline-first)',
+    description: 'Prefers Gemini Nano or Llama on-device and falls back to cloud models when available.',
+  },
+  {
+    value: 'nano',
+    label: 'Gemini Nano (offline)',
+    description: 'Runs entirely on-device (Android 14+ with AICore). No internet or API key needed.',
+  },
+  {
+    value: 'llama-small',
+    label: 'Llama Small (offline)',
+    description: 'Offline fallback for Android 7+. Requires the local Llama model to be installed.',
+  },
+  {
+    value: 'gpt-4o-mini',
+    label: 'GPT-4o mini (cloud)',
+    description: 'Uses the cloud API via the proxy server. Requires internet + API key.',
+  },
+  {
+    value: 'claude-code',
+    label: 'Claude Code (cloud)',
+    description: 'Anthropic via proxy. Requires an sk-ant-* API key and internet access.',
+  },
+];
+
+type VisitContext = LLMInput['visitContext'];
+type CurrentVisitContext = NonNullable<NonNullable<VisitContext>['current']>;
+
+function loadStoredModel(): ModelOption {
+  if (typeof window === 'undefined') return 'auto';
+  const stored = localStorage.getItem(MODEL_STORAGE_KEY) as ModelOption | null;
+  return stored && MODEL_OPTIONS.some((opt) => opt.value === stored) ? stored : 'auto';
+}
+
+function persistModelSelection(value: ModelOption) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(MODEL_STORAGE_KEY, value);
+}
+
+function readVisitContext(): VisitContext {
+  if (typeof window === 'undefined') return null;
+  const raw = (window as any).__VISIT_CONTEXT__;
+  if (!raw) return null;
+
+  const sourceGps = raw.current?.gps || raw.gps;
+  const currentGps = sourceGps
+    ? {
+        lat: sourceGps.lat,
+        lon: sourceGps.lon,
+        accuracy: sourceGps.acc ?? sourceGps.accuracy,
+      }
+    : undefined;
+
+  const currentContext: Partial<CurrentVisitContext> = {};
+  const currentNote = raw.current?.note ?? raw.note ?? null;
+  const currentPhoto =
+    raw.current?.photo ??
+    raw.photo?.url ??
+    (typeof raw.photo === 'string' ? raw.photo : null);
+  const currentAudio =
+    raw.current?.audio ??
+    raw.audio?.url ??
+    (typeof raw.audio === 'string' ? raw.audio : null);
+
+  if (currentGps) currentContext.gps = currentGps;
+  if (currentNote) currentContext.note = currentNote;
+  if (currentPhoto) currentContext.photo = currentPhoto;
+  if (currentAudio) currentContext.audio = currentAudio;
+
+  const hasCurrent = Object.keys(currentContext).length > 0;
+
+  const latest =
+    (typeof raw.latest === 'object' && raw.latest !== null
+      ? raw.latest
+      : typeof raw.latestVisit === 'object' && raw.latestVisit !== null
+      ? raw.latestVisit
+      : null) || null;
+
+  const allVisits = Array.isArray(raw.allVisits) ? raw.allVisits : [];
+
+  return {
+    current: hasCurrent ? (currentContext as CurrentVisitContext) : undefined,
+    kmzData: raw.kmzData ?? raw.current?.kmzData ?? null,
+    latest,
+    allVisits,
+  };
+}
 
 interface ChatDrawerProps {
   open: boolean;
@@ -19,23 +117,41 @@ export function ChatDrawer({ open, onClose }: ChatDrawerProps) {
   const [busy, setBusy] = useState(false);
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [apiKey, setApiKey] = useState(getUserApiKey());
+  const [selectedModel, setSelectedModel] = useState<ModelOption>(() => loadStoredModel());
+  const [modelStats, setModelStats] = useState<LLMProviderStats | null>(null);
+  const [statsError, setStatsError] = useState('');
+  const [statsLoading, setStatsLoading] = useState(false);
   
   const initialMessage = useMemo(() => {
     const hasKey = getUserApiKey();
-    if (!hasKey) {
-      return {
-        role: 'assistant' as const,
-        content: '👋 Hi! This app uses **Cloud AI only** (no local models).\n\nTo start chatting:\n1. Click the 🔑 button above\n2. Enter your OpenAI or Anthropic API key\n3. Start chatting!\n\n**Note:** Requires internet connection and API key.'
-      };
-    }
     return {
       role: 'assistant' as const,
-      content: 'Hi! Ask me anything about your field visit!'
+      content: hasKey
+        ? '👋 Hi! Select a model below (Auto, Nano, Llama, GPT-4o mini, Claude) and start chatting.'
+        : '👋 Hi! Offline models (Auto/Nano/Llama) work without internet. Set an API key with the 🔑 button to unlock GPT-4o mini or Claude.',
     };
   }, []);
   
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
   
+  useEffect(() => {
+    persistModelSelection(selectedModel);
+  }, [selectedModel]);
+
+  const refreshModelStats = useCallback(async () => {
+    setStatsError('');
+    setStatsLoading(true);
+    try {
+      const stats = await llmProvider.getStats();
+      setModelStats(stats);
+    } catch (err: any) {
+      setModelStats(null);
+      setStatsError(err?.message || 'Unable to detect models');
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (open) {
       const currentKey = getUserApiKey();
@@ -43,8 +159,9 @@ export function ChatDrawer({ open, onClose }: ChatDrawerProps) {
       if (!currentKey && navigator.onLine) {
         setTimeout(() => setShowApiKeyInput(true), 1000);
       }
+      refreshModelStats();
     }
-  }, [open]);
+  }, [open, refreshModelStats]);
 
   const handleApiKeySave = () => {
     setUserApiKey(apiKey);
@@ -55,6 +172,7 @@ export function ChatDrawer({ open, onClose }: ChatDrawerProps) {
         content: '✅ API key saved! You can now chat.' 
       }]);
     }
+    refreshModelStats();
   };
 
   const send = async () => {
@@ -70,11 +188,16 @@ export function ChatDrawer({ open, onClose }: ChatDrawerProps) {
     setMessages((m) => [...m, assistantMsg]);
 
     try {
-      console.log('[ChatDrawer] Sending:', userInput.substring(0, 50));
+      const visitContext = readVisitContext();
+      const location = visitContext?.current?.gps
+        ? { lat: visitContext.current.gps.lat, lon: visitContext.current.gps.lon }
+        : undefined;
 
-      // SIMPLE - Just use SimpleLLM
-      const generator = simpleLLM.stream({
+      const generator = llmProvider.stream({
         text: userInput,
+        location,
+        model: selectedModel,
+        visitContext,
       });
 
       let hasResponse = false;
@@ -91,7 +214,17 @@ export function ChatDrawer({ open, onClose }: ChatDrawerProps) {
       }
 
       if (!hasResponse) {
-        throw new Error('No response received');
+        setMessages((m) => {
+          const copy = [...m];
+          const last = copy[copy.length - 1];
+          if (last && last.role === 'assistant') {
+            copy[copy.length - 1] = { 
+              ...last, 
+              content: 'No response generated. Check model availability (offline install or API key for cloud models).' 
+            };
+          }
+          return copy;
+        });
       }
     } catch (err: any) {
       console.error('[ChatDrawer] Error:', err);
@@ -100,10 +233,16 @@ export function ChatDrawer({ open, onClose }: ChatDrawerProps) {
       
       if (errMsg.includes('API key')) {
         errorMessage += 'Set your API key using the 🔑 button above.';
+      } else if (errMsg.includes('Gemini Nano')) {
+        errorMessage += 'Gemini Nano runs only on Android 14+ with AICore. Switch to Auto or a cloud model (GPT-4o mini / Claude) if you do not have Nano.';
+      } else if (errMsg.includes('Llama Local')) {
+        errorMessage += 'Install the local Llama model or choose Auto/cloud.';
+      } else if (errMsg.includes('No LLM available')) {
+        errorMessage += 'No offline models detected and no API key configured. Install Gemini Nano / Llama or set your API key for cloud models.';
       } else if (errMsg.includes('server') || errMsg.includes('ECONNREFUSED')) {
-        errorMessage += 'Start the test server: `node apps/web/test-server.js`';
+        errorMessage += 'Start the test server locally (`node apps/web/test-server.js`) or point VITE_API_URL to your deployed API.';
       } else if (errMsg.includes('offline') || errMsg.includes('internet')) {
-        errorMessage += 'Check your internet connection.';
+        errorMessage += 'Check your internet connection or switch to an offline model.';
       } else {
         errorMessage += 'Check the server console for details.';
       }
@@ -179,6 +318,43 @@ export function ChatDrawer({ open, onClose }: ChatDrawerProps) {
                 >
                   ✕
                 </button>
+              </div>
+            </div>
+
+            <div className="border-b border-slate-200 px-3 py-2 space-y-1">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-600">Model</label>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value as ModelOption)}
+                  className="text-xs rounded-lg border border-slate-300 bg-white px-2 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {MODEL_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={refreshModelStats}
+                  disabled={statsLoading}
+                  className="text-xs px-2 py-1 border rounded hover:bg-slate-50 disabled:opacity-50"
+                  title="Refresh model availability"
+                >
+                  ↻
+                </button>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                {MODEL_OPTIONS.find((opt) => opt.value === selectedModel)?.description}
+              </div>
+              <div className="text-[11px] text-slate-500">
+                {statsLoading
+                  ? 'Checking model availability…'
+                  : statsError
+                  ? `⚠️ ${statsError}`
+                  : modelStats
+                  ? `Offline: ${modelStats.localAvailable ? '✅' : '⛔'} · Cloud: ${modelStats.cloudAvailable ? '✅' : '⛔'}`
+                  : 'Model availability unknown'}
               </div>
             </div>
 

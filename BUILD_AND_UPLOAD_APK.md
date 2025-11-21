@@ -75,3 +75,38 @@ But the release page link is better because users can see release notes and othe
 - Make sure file is less than 100 MB
 - Try renaming to remove spaces/special characters
 
+---
+
+## ✅ Automated GitHub Actions Build (New)
+
+You no longer have to run the Gradle steps manually every time.  
+Workflow: `.github/workflows/android-build.yml`
+
+### Configure once
+1. In GitHub, go to **Settings → Secrets and variables → Actions → New repository secret**.
+2. Add `PROD_API_URL` with the production endpoint you want baked into the APK (e.g. `https://your-api-server.com/chat`).
+   - If you skip this, the workflow falls back to `https://api.example.com/chat`.
+
+### What the workflow does on each push/PR
+1. Checks out the repo
+2. Installs Node + workspaces (`npm ci --legacy-peer-deps`)
+3. Builds the shared package and Android web bundle (`npm run build:android --workspace=apps/web`)
+4. Runs `npx cap sync android`
+5. Executes `./gradlew assembleDebug`
+6. Uploads `apps/web/android/app/build/outputs/apk/debug/app-debug.apk` as artifact `farm-visit-android-debug`
+
+### How to download the APK artifact
+1. Open the workflow run (Actions tab → “Android Debug Build”)
+2. Scroll to the **Artifacts** section
+3. Download `farm-visit-android-debug.zip`, unzip, and install on your device
+
+Use the manual steps above only if you need local debugging or release signing.
+
+
+
+
+
+
+
+
+

@@ -106,3 +106,8 @@ if ($port) {
 2. **Check status first** before starting (to avoid "port in use" error)
 3. **Use the scripts** - they handle everything automatically
 
+
+
+
+
+

@@ -77,3 +77,8 @@ The `tsc -b` step is redundant and causes issues. We should:
 3. Keep workspace dependency for proper linking
 4. Keep Vite alias as fallback
 
+
+
+
+
+

@@ -133,3 +133,11 @@ localStorage.setItem('user_api_key', 'sk-proj-g4-YOUR-ACTUAL-KEY');
 
 **That's it! Just 3 steps.**
 
+
+
+
+
+
+
+
+
