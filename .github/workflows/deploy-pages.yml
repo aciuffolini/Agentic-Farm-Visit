@@ -36,7 +36,7 @@ jobs:
         run: |
           echo "=== INSTALLING ROOT DEPENDENCIES ==="
           npm config set workspaces true
-          npm install --legacy-peer-deps --workspaces --include-workspace-root
+          npm install --legacy-peer-deps
           echo "✅ Root dependencies installed"
           echo "Verifying workspace structure..."
           ls -la packages/shared/ || echo "⚠️ packages/shared not found"

@@ -51,11 +51,16 @@ jobs:
       - name: Upgrade npm to latest
         run: npm install -g npm@10
 
+      - name: Show Node and npm versions
+        run: |
+          node --version
+          npm --version
+
       - name: Enable npm workspaces (npm beta)
         run: npm config set workspaces=true
 
       - name: Install dependencies (root + workspaces)
-        run: npm install --legacy-peer-deps --workspaces --include-workspace-root
+        run: npm install --legacy-peer-deps
 
       - name: Build shared workspace package
         run: npm run build:shared
