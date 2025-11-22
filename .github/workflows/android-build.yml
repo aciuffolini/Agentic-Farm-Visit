@@ -48,8 +48,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Enable npm workspaces (npm beta)
+        run: npm config set workspaces=true
+
       - name: Install dependencies (root + workspaces)
-        run: npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps --workspaces --include-workspace-root
 
       - name: Build shared workspace package
         run: npm run build:shared
