@@ -96,8 +96,8 @@ export default defineConfig(({ mode }) => {
           manifest: {
             name: "Farm Field Visit",
             short_name: "Farm Visit",
-            start_url: basePath,
-            scope: basePath,
+            start_url: `${basePath}`,
+            scope: `${basePath}`,
             display: "standalone",
             background_color: "#ffffff",
             theme_color: "#22c55e",
