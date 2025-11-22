@@ -4,23 +4,21 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "7_farm_visit/apps/web/**"
-      - "7_farm_visit/packages/**"
-      - "7_farm_visit/package.json"
-      - "7_farm_visit/package-lock.json"
-      - "7_farm_visit/apps/web/android/**"
+      - "apps/web/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/web/android/**"
+    branches:
+      - main
+      - develop
   pull_request:
     paths:
-      - "7_farm_visit/apps/web/**"
-      - "7_farm_visit/packages/**"
-      - "7_farm_visit/package.json"
-      - "7_farm_visit/package-lock.json"
-      - "7_farm_visit/apps/web/android/**"
-
-defaults:
-  run:
-    shell: bash
-    working-directory: 7_farm_visit
+      - "apps/web/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/web/android/**"
 
 env:
   DEFAULT_VITE_API_URL: https://api.example.com/chat
