@@ -66,8 +66,7 @@ jobs:
 
       - name: Sync Capacitor Android project
         run: |
-          cd apps/web
-          npx cap sync android
+          pnpm --filter @farm-visit/web exec cap sync android
 
       - name: Build Android debug APK
         run: |
