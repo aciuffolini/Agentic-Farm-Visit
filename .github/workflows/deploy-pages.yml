@@ -74,8 +74,9 @@ jobs:
         working-directory: apps/web
         env:
           NODE_ENV: production
+          VITE_BASE_PATH: /Agentic-Farm-Visit/
         run: |
-          echo "=== BUILDING WEB APP (base=/) ==="
+          echo "=== BUILDING WEB APP (base=/Agentic-Farm-Visit/) ==="
           pnpm run build
           echo "✅ Web app build command completed"
       
