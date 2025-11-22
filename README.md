@@ -3,18 +3,46 @@
 <div align="center">
 
 ![Version](https://img.shields.io/badge/version-1.0.9-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Android-green.svg)
+![Platform](https://img.shields.io/badge/platform-PWA%20%2B%20Android-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-**Offline-First Field Visit Capture App** — Android Native Sensors + AI Assistance
+**Offline-First Field Visit Capture App** — Web PWA + Android Native Sensors + AI Assistance
 
-[📱 Download APK](#-download-for-android) • [🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation)
+[🌐 Open Live PWA](#-use-it-on-your-phone-pwa) • [🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation)
 
 </div>
 
 ---
 
-## 📥 Download for Android
+## 🌐 Use It on Your Phone (PWA)
+
+The latest build is always live at **https://aciuffolini.github.io/Agentic-Farm-Visit/**
+
+### ✅ Works great on
+- Chrome / Edge on Android
+- Safari on iOS (Add to Home Screen)
+- Any desktop browser (QA and demos)
+
+### 📱 Add to Home Screen (Android)
+1. Open **Chrome** and go to the [live link](https://aciuffolini.github.io/Agentic-Farm-Visit/).
+2. Tap the **⋮ menu** → **Add to Home screen** → confirm.
+3. Launch from the shortcut for full-screen mode.
+
+### 📱 Add to Home Screen (iOS)
+1. Open **Safari** and visit the [live link](https://aciuffolini.github.io/Agentic-Farm-Visit/).
+2. Tap the **Share** icon → **Add to Home Screen** → Add.
+3. Launch from the icon (runs as a standalone web app).
+
+### Notes
+- Browser mode uses web APIs for camera / GPS / audio. For 100% sensor fidelity, use the Android shell.
+- Gemini Nano (offline LLM) is Android-only; the PWA uses cloud LLM or mock mode.
+- Offline capture + outbox still work inside the browser.
+
+> 💡 **Recommendation:** Use the PWA for day-to-day testing and field pilots. Build the Android APK only when you need native plugins or offline LLMs.
+
+---
+
+## 📥 (Optional) Download for Android
 
 <div align="center">
 
@@ -26,7 +54,7 @@
 
 </div>
 
-### 📋 Installation Steps
+### 📋 APK Installation Steps
 
 1. **Download APK** using the button above or visit [Releases](https://github.com/aciuffolini/Agentic-Farm-Visit/releases)
 2. **Enable Unknown Sources**:
@@ -77,9 +105,11 @@
 
 ## 🚀 Quick Start
 
-### For Users (Install Pre-built APK)
+### For Users (Instant PWA)
 
-👉 **See [Download for Android](#-download-for-android) above**
+- Open the [Live PWA](https://aciuffolini.github.io/Agentic-Farm-Visit/)
+- Add it to your home screen (Android/iOS instructions above)
+- Enter the password (and API key for chat) directly from the browser
 
 ### For Developers
 
@@ -162,7 +192,7 @@ The app uses a **sensor abstraction layer** that works with:
 
 ---
 
-## 🔧 Building from Source
+## 🔧 Building from Source (Android shell only)
 
 ### Build Android APK
 
