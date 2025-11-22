@@ -28,6 +28,9 @@ jobs:
           node-version: '20'
           cache: 'npm'
       
+      - name: Upgrade npm to latest
+        run: npm install -g npm@10
+      
       # FIX #1: Install at ROOT to enable workspace linking
       - name: Install dependencies
         run: |

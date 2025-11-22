@@ -48,6 +48,9 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Upgrade npm to latest
+        run: npm install -g npm@10
+
       - name: Enable npm workspaces (npm beta)
         run: npm config set workspaces=true
 
