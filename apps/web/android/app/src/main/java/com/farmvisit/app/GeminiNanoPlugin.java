@@ -39,7 +39,7 @@ public class GeminiNanoPlugin extends Plugin {
     @PluginMethod
     public void isAvailable(PluginCall call) {
         JSObject ret = new JSObject();
-        
+
         // Check Android version (API 34 = Android 14)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ret.put("available", false);
@@ -53,28 +53,25 @@ public class GeminiNanoPlugin extends Plugin {
             android.util.Log.d("GeminiNano", "Attempting to get Generation client...");
             model = Generation.getClient();
             android.util.Log.d("GeminiNano", "Got Generation client, checking status...");
-            
+
             FeatureStatus status = model.checkStatus();
             android.util.Log.d("GeminiNano", "Status: " + status.name());
-            
-            // Check status enum (UNAVAILABLE, DOWNLOADABLE, DOWNLOADING, AVAILABLE)
-            boolean isAvailable = (status == FeatureStatus.AVAILABLE || 
-                                  status == FeatureStatus.DOWNLOADABLE || 
-                                  status == FeatureStatus.DOWNLOADING);
-            
+
+            // Check status enum (UNAVAILABLE, DOWNLOADABLE, DOWNLOADED)
+            boolean isAvailable = (status == FeatureStatus.DOWNLOADED ||
+                    status == FeatureStatus.DOWNLOADABLE);
+
             ret.put("available", isAvailable);
             ret.put("status", status.name());
-            
+
             if (status == FeatureStatus.DOWNLOADABLE) {
                 ret.put("downloadable", true);
                 android.util.Log.d("GeminiNano", "Model is downloadable");
-            } else if (status == FeatureStatus.AVAILABLE) {
-                android.util.Log.d("GeminiNano", "Model is already available");
+            } else if (status == FeatureStatus.DOWNLOADED) {
+                android.util.Log.d("GeminiNano", "Model is already available (DOWNLOADED)");
             } else if (status == FeatureStatus.UNAVAILABLE) {
                 android.util.Log.w("GeminiNano", "Model unavailable - device not supported");
                 ret.put("reason", "Device not supported (no AICore / not eligible)");
-            } else if (status == FeatureStatus.DOWNLOADING) {
-                android.util.Log.d("GeminiNano", "Model is currently downloading");
             }
         } catch (NoClassDefFoundError e) {
             android.util.Log.e("GeminiNano", "Class not found error: " + e.getMessage());
@@ -85,7 +82,7 @@ public class GeminiNanoPlugin extends Plugin {
             ret.put("available", false);
             ret.put("reason", e.getClass().getSimpleName() + ": " + e.getMessage());
         }
-        
+
         call.resolve(ret);
     }
 
@@ -104,50 +101,41 @@ public class GeminiNanoPlugin extends Plugin {
             model = Generation.getClient();
             FeatureStatus status = model.checkStatus();
             android.util.Log.d("GeminiNano", "Initialize status: " + status.name());
-            
+
             // Handle all possible status values according to ML Kit API
             switch (status) {
                 case UNAVAILABLE:
                     android.util.Log.w("GeminiNano", "Model unavailable - device not supported");
                     call.reject("Device not supported (no AICore / not eligible)");
                     return;
-                    
+
                 case DOWNLOADABLE:
                     android.util.Log.d("GeminiNano", "Starting model download...");
                     // Download model in background
                     model.download()
-                        .addOnSuccessListener(aVoid -> {
-                            android.util.Log.d("GeminiNano", "Model download successful");
-                            modelInitialized = true;
-                            JSObject ret = new JSObject();
-                            ret.put("initialized", true);
-                            ret.put("message", "Model downloaded successfully");
-                            call.resolve(ret);
-                        })
-                        .addOnFailureListener(e -> {
-                            android.util.Log.e("GeminiNano", "Model download failed: " + e.getMessage(), e);
-                            call.reject("Failed to download model: " + e.getMessage());
-                        });
+                            .addOnSuccessListener(aVoid -> {
+                                android.util.Log.d("GeminiNano", "Model download successful");
+                                modelInitialized = true;
+                                JSObject ret = new JSObject();
+                                ret.put("initialized", true);
+                                ret.put("message", "Model downloaded successfully");
+                                call.resolve(ret);
+                            })
+                            .addOnFailureListener(e -> {
+                                android.util.Log.e("GeminiNano", "Model download failed: " + e.getMessage(), e);
+                                call.reject("Failed to download model: " + e.getMessage());
+                            });
                     return;
-                    
-                case DOWNLOADING:
-                    android.util.Log.d("GeminiNano", "Model is currently downloading, waiting...");
-                    // Model is already downloading, mark as initializing
-                    JSObject ret = new JSObject();
-                    ret.put("initialized", false);
-                    ret.put("message", "Model is currently downloading, please wait");
-                    call.resolve(ret);
-                    return;
-                    
-                case AVAILABLE:
-                    android.util.Log.d("GeminiNano", "Model already available, marking as initialized");
+
+                case DOWNLOADED:
+                    android.util.Log.d("GeminiNano", "Model already available (DOWNLOADED), marking as initialized");
                     modelInitialized = true;
                     JSObject ret2 = new JSObject();
                     ret2.put("initialized", true);
                     ret2.put("message", "Model already available");
                     call.resolve(ret2);
                     return;
-                    
+
                 default:
                     android.util.Log.w("GeminiNano", "Unknown status: " + status);
                     call.reject("Model not available. Unknown status: " + status);
@@ -179,24 +167,26 @@ public class GeminiNanoPlugin extends Plugin {
         }
 
         // Generate response using ML Kit GenAI Generative API
-        android.util.Log.d("GeminiNano", "Generating content for prompt: " + prompt.substring(0, Math.min(50, prompt.length())));
+        android.util.Log.d("GeminiNano",
+                "Generating content for prompt: " + prompt.substring(0, Math.min(50, prompt.length())));
         model.generateContent(prompt)
-            .addOnSuccessListener(result -> {
-                String responseText = result.getText();
-                android.util.Log.d("GeminiNano", "Generation successful, response length: " + (responseText != null ? responseText.length() : 0));
-                if (responseText == null || responseText.isEmpty()) {
-                    android.util.Log.w("GeminiNano", "Empty response from model");
-                    call.reject("Empty response from model");
-                    return;
-                }
-                JSObject ret = new JSObject();
-                ret.put("text", responseText);
-                call.resolve(ret);
-            })
-            .addOnFailureListener(e -> {
-                android.util.Log.e("GeminiNano", "Generation failed: " + e.getMessage(), e);
-                call.reject("Generation failed: " + e.getMessage());
-            });
+                .addOnSuccessListener(result -> {
+                    String responseText = result.getText();
+                    android.util.Log.d("GeminiNano", "Generation successful, response length: "
+                            + (responseText != null ? responseText.length() : 0));
+                    if (responseText == null || responseText.isEmpty()) {
+                        android.util.Log.w("GeminiNano", "Empty response from model");
+                        call.reject("Empty response from model");
+                        return;
+                    }
+                    JSObject ret = new JSObject();
+                    ret.put("text", responseText);
+                    call.resolve(ret);
+                })
+                .addOnFailureListener(e -> {
+                    android.util.Log.e("GeminiNano", "Generation failed: " + e.getMessage(), e);
+                    call.reject("Generation failed: " + e.getMessage());
+                });
     }
 
     /**
@@ -222,28 +212,28 @@ public class GeminiNanoPlugin extends Plugin {
         // Generate response (streaming simulated using Handler for non-blocking)
         // Note: ML Kit may not support true streaming, so we simulate it
         model.generateContent(prompt)
-            .addOnSuccessListener(result -> {
-                // Process on background thread to avoid blocking
-                backgroundExecutor.execute(() -> {
-                    String responseText = result.getText();
-                    
-                    if (responseText == null || responseText.isEmpty()) {
-                        mainHandler.post(() -> {
-                            streamCall.reject("Empty response from model");
-                        });
-                        return;
-                    }
-                    
-                    // Split into words for streaming effect
-                    String[] words = responseText.split("\\s+");
-                    
-                    // Stream chunks word by word using Handler (non-blocking)
-                    streamWordsAsync(words, 0, streamCall);
+                .addOnSuccessListener(result -> {
+                    // Process on background thread to avoid blocking
+                    backgroundExecutor.execute(() -> {
+                        String responseText = result.getText();
+
+                        if (responseText == null || responseText.isEmpty()) {
+                            mainHandler.post(() -> {
+                                streamCall.reject("Empty response from model");
+                            });
+                            return;
+                        }
+
+                        // Split into words for streaming effect
+                        String[] words = responseText.split("\\s+");
+
+                        // Stream chunks word by word using Handler (non-blocking)
+                        streamWordsAsync(words, 0, streamCall);
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    call.reject("Streaming failed: " + e.getMessage());
                 });
-            })
-            .addOnFailureListener(e -> {
-                call.reject("Streaming failed: " + e.getMessage());
-            });
     }
 
     /**
@@ -276,4 +266,3 @@ public class GeminiNanoPlugin extends Plugin {
         }, 30);
     }
 }
-
