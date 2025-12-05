@@ -93,21 +93,25 @@ export default defineConfig(({ mode }) => {
       ...(disablePWA ? [] : [
         VitePWA({
           registerType: "autoUpdate",
+          base: basePath,
           manifest: {
             name: "Farm Field Visit",
             short_name: "Farm Visit",
-            start_url: `${basePath}`,
-            scope: `${basePath}`,
+            start_url: basePath,
+            scope: basePath,
             display: "standalone",
             background_color: "#ffffff",
             theme_color: "#22c55e",
             orientation: "portrait",
             icons: [
-              { src: `${basePath}pwa-192.png`, sizes: "192x192", type: "image/png", purpose: "any maskable" },
-              { src: `${basePath}pwa-512.png`, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+              { src: "pwa-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+              { src: "pwa-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
             ]
           },
-          workbox: { globPatterns: ["**/*.{js,css,html,ico,png,svg}"] }
+          workbox: { 
+            globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+            navigateFallback: `${basePath}index.html`
+          }
         })
       ])
     ],

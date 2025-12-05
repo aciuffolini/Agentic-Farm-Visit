@@ -41,6 +41,8 @@ jobs:
           echo "Verifying workspace structure..."
           ls -la packages/shared/ || echo "⚠️ packages/shared not found"
           ls -la apps/web/ || echo "⚠️ apps/web not found"
+          echo "Verifying workspace linking..."
+          pnpm list --depth=0 || echo "⚠️ pnpm list failed"
       
       # FIX #2: Build shared package FIRST (required dependency)
       - name: Build shared package
@@ -102,6 +104,15 @@ jobs:
           du -sh apps/web/dist/
           echo "Key files:"
           ls -lh apps/web/dist/ | head -10
+          echo ""
+          echo "=== VERIFYING BASE PATH IN HTML ==="
+          if grep -q "/Agentic-Farm-Visit/" apps/web/dist/index.html; then
+            echo "✅ Base path found in HTML"
+          else
+            echo "⚠️  WARNING: Base path may not be correctly set in HTML"
+            echo "First 20 lines of index.html:"
+            head -20 apps/web/dist/index.html
+          fi
       
       # FIX #6: Verify build size to catch empty outputs
       - name: Verify build artifact size
