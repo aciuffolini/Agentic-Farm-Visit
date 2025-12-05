@@ -58,3 +58,14 @@ apps/web/ios/
 # Prisma
 apps/server/prisma/migrations/
 
+
+# Documentation Archive
+docs/archive/
+
+# Temporary & Test Files
+*.tmp
+*.bak
+**/test-*.js
+!apps/web/test-server.js
+**/TEST_*.md
+**/SIMPLE_TEST.*
