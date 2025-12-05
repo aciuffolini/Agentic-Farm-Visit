@@ -77,7 +77,8 @@ jobs:
           VITE_BASE_PATH: /Agentic-Farm-Visit/
         run: |
           echo "=== BUILDING WEB APP (base=/Agentic-Farm-Visit/) ==="
-          pnpm run build -- --base /Agentic-Farm-Visit/
+          echo "VITE_BASE_PATH=$VITE_BASE_PATH"
+          pnpm run build
           echo "✅ Web app build command completed"
       
       # FIX #5: Verify web build succeeded
