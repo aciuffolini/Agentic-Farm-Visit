@@ -160,6 +160,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       host: true, // Allow access from network (for mobile testing)
+      open: true, // Automatically open browser when dev server starts
       proxy: {
         "/api": {
           target: "http://localhost:3000",

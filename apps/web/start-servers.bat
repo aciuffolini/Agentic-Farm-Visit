@@ -19,7 +19,7 @@ echo Both servers are starting in separate windows!
 echo.
 echo Next steps:
 echo    1. Wait for both servers to show ready messages
-echo    2. Open http://localhost:5173/ in browser
+echo    2. Browser will open automatically at http://localhost:5173/
 echo    3. Test the chat functionality
 echo.
 pause

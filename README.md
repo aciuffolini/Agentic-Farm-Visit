@@ -8,7 +8,7 @@
 
 **Offline-First Field Visit Capture App** — Web PWA + Android Native Sensors + AI Assistance
 
-[🌐 Open Live PWA](#-use-it-on-your-phone-pwa) • [🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation)
+[🌐 Open Live PWA](#use-it-on-your-phone-pwa) • [🚀 Quick Start](#quick-start) • [📚 Documentation](#documentation)
 
 </div>
 
@@ -63,7 +63,7 @@ The latest build is always live at **https://aciuffolini.github.io/Agentic-Farm-
 3. **Install APK** from your Downloads folder
 4. **Launch app** and enter password when prompted
 
-> **Note**: The APK will be available after the first release is created. If you don't see the download button, check [How to Build APK](#-building-from-source).
+> **Note**: The APK will be available after the first release is created. If you don't see the download button, check [How to Build APK](#building-from-source-android-shell-only).
 
 ---
 
@@ -466,7 +466,7 @@ See [LOCAL_TESTING_GUIDE.md](./LOCAL_TESTING_GUIDE.md) for details.
 
 **Made with ❤️ for farmers**
 
-[⭐ Star this repo](https://github.com/aciuffolini/Agentic-Farm-Visit) • [📱 Download APK](#-download-for-android) • [🐛 Report Bug](https://github.com/aciuffolini/Agentic-Farm-Visit/issues)
+[⭐ Star this repo](https://github.com/aciuffolini/Agentic-Farm-Visit) • [📱 Download APK](#optional-download-for-android) • [🐛 Report Bug](https://github.com/aciuffolini/Agentic-Farm-Visit/issues)
 
 **Contact**: [aciuffolini@teknal.com.ar](mailto:aciuffolini@teknal.com.ar) for permissions and access
 
