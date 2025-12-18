@@ -71,11 +71,14 @@ export default defineConfig(({ mode }) => {
   // When building for Android, use --mode android to disable PWA plugin
   const disablePWA = mode === 'android' || process.env.BUILD_TARGET === 'android';
   
-  // GitHub Pages base path - set via VITE_BASE_PATH env variable
-  // For GitHub Pages: VITE_BASE_PATH=/Agentic-Farm-Visit/
-  // For local dev or custom domain: VITE_BASE_PATH=/
-  // Default to GitHub Pages path for production builds
-  const basePath = process.env.VITE_BASE_PATH || (process.env.NODE_ENV === 'production' ? '/Agentic-Farm-Visit/' : '/');
+  // Base path configuration:
+  // - Android builds (--mode android): Use relative paths './' for Capacitor WebView
+  // - GitHub Pages: Use '/Agentic-Farm-Visit/' (set via VITE_BASE_PATH or auto-detected in production)
+  // - Local dev: Use '/'
+  const isAndroidBuild = mode === 'android' || process.env.BUILD_TARGET === 'android';
+  const basePath = isAndroidBuild 
+    ? './' 
+    : (process.env.VITE_BASE_PATH || (process.env.NODE_ENV === 'production' ? '/Agentic-Farm-Visit/' : '/'));
   
   return {
     base: basePath,
@@ -115,52 +118,6 @@ export default defineConfig(({ mode }) => {
         })
       ])
     ],
-    customLogger: {
-      error: (msg, options) => {
-        // Filter out ECONNREFUSED proxy errors to reduce noise
-        // Handle different message formats - be very permissive
-        const message = typeof msg === 'string' ? msg : 
-                       msg?.message || 
-                       (msg instanceof Error ? msg.toString() : String(msg));
-        
-        // Check for proxy errors - catch all variations
-        const isProxyError = 
-          message.includes('http proxy error') ||
-          message.includes('proxy error') ||
-          (message.includes('ECONNREFUSED') && (
-            message.includes('AggregateError') ||
-            message.includes('proxy') ||
-            message.includes('/api/') ||
-            message.includes('localhost:3000')
-          )) ||
-          (msg instanceof Error && (
-            msg.message?.includes('ECONNREFUSED') ||
-            msg.message?.includes('proxy error') ||
-            msg.name === 'AggregateError'
-          ));
-        
-        if (isProxyError) {
-          // Show warning only once (shared with plugin)
-          if (!apiServerWarningShown) {
-            apiServerWarningShown = true;
-            console.warn('⚠️  API server not running on port 3000. Start with: node test-server.js');
-            console.warn('   (Proxy errors suppressed. The app will work, but API calls will fail.)');
-          }
-          return; // Suppress the error
-        }
-        // Log other errors normally
-        console.error(msg, options);
-      },
-      // Also filter info logs that might contain proxy errors
-      info: (msg, options) => {
-        const message = typeof msg === 'string' ? msg : String(msg);
-        if (message.includes('http proxy error') || 
-            (message.includes('ECONNREFUSED') && message.includes('/api/'))) {
-          return; // Suppress
-        }
-        console.info(msg, options);
-      },
-    },
     server: {
       port: 5173,
       host: true, // Allow access from network (for mobile testing)

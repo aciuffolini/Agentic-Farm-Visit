@@ -57,9 +57,9 @@ public class GeminiNanoPlugin extends Plugin {
             FeatureStatus status = model.checkStatus();
             android.util.Log.d("GeminiNano", "Status: " + status.name());
 
-            // Check status enum (UNAVAILABLE, DOWNLOADABLE, DOWNLOADED)
-            boolean isAvailable = (status == FeatureStatus.DOWNLOADED ||
-                    status == FeatureStatus.DOWNLOADABLE);
+            // Check status enum (UNAVAILABLE, DOWNLOADABLE, ...)
+            // Fix: Avoid missing DOWNLOADED enum by checking what it is NOT
+            boolean isAvailable = (status != FeatureStatus.UNAVAILABLE);
 
             ret.put("available", isAvailable);
             ret.put("status", status.name());
@@ -67,11 +67,12 @@ public class GeminiNanoPlugin extends Plugin {
             if (status == FeatureStatus.DOWNLOADABLE) {
                 ret.put("downloadable", true);
                 android.util.Log.d("GeminiNano", "Model is downloadable");
-            } else if (status == FeatureStatus.DOWNLOADED) {
-                android.util.Log.d("GeminiNano", "Model is already available (DOWNLOADED)");
             } else if (status == FeatureStatus.UNAVAILABLE) {
                 android.util.Log.w("GeminiNano", "Model unavailable - device not supported");
                 ret.put("reason", "Device not supported (no AICore / not eligible)");
+            } else {
+                // Assuming implicit READY/DOWNLOADED state if not the above
+                android.util.Log.d("GeminiNano", "Model assumed ready (Status: " + status.name() + ")");
             }
         } catch (NoClassDefFoundError e) {
             android.util.Log.e("GeminiNano", "Class not found error: " + e.getMessage());
@@ -127,18 +128,19 @@ public class GeminiNanoPlugin extends Plugin {
                             });
                     return;
 
-                case DOWNLOADED:
-                    android.util.Log.d("GeminiNano", "Model already available (DOWNLOADED), marking as initialized");
-                    modelInitialized = true;
-                    JSObject ret2 = new JSObject();
-                    ret2.put("initialized", true);
-                    ret2.put("message", "Model already available");
-                    call.resolve(ret2);
-                    return;
-
                 default:
-                    android.util.Log.w("GeminiNano", "Unknown status: " + status);
-                    call.reject("Model not available. Unknown status: " + status);
+                    // Fix: Handle potential READY/DOWNLOADED state here since enum might be missing
+                    if (status != FeatureStatus.UNAVAILABLE) {
+                        android.util.Log.d("GeminiNano", "Model status " + status.name() + " treated as ready");
+                        modelInitialized = true;
+                        JSObject ret2 = new JSObject();
+                        ret2.put("initialized", true);
+                        ret2.put("message", "Model available (Status: " + status.name() + ")");
+                        call.resolve(ret2);
+                    } else {
+                        android.util.Log.w("GeminiNano", "Unknown unavailable status: " + status);
+                        call.reject("Model not available. Status: " + status);
+                    }
                     return;
             }
         } catch (NoClassDefFoundError e) {
