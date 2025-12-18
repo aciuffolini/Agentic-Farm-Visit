@@ -1,8 +1,6 @@
 package com.farmvisit.app;
 
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import androidx.annotation.NonNull;
 
 import com.getcapacitor.JSObject;
@@ -11,145 +9,78 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-// ML Kit GenAI Generative API imports (CORRECT PACKAGE STRUCTURE)
-import com.google.mlkit.genai.generative.FeatureStatus;
-import com.google.mlkit.genai.generative.Generation;
-
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-
 /**
- * Capacitor Plugin for Gemini Nano on-device using ML Kit GenAI Generative API
- * Requires Android 14+ (API 34+) with AICore support
+ * Capacitor Plugin for Gemini Nano on-device AI
  * 
- * Uses correct package: com.google.mlkit.genai.generative.*
- * Dependency: com.google.mlkit:genai-prompt:1.0.0-alpha1
+ * Note: ML Kit GenAI Generative API (com.google.mlkit:genai-prompt) is still in alpha
+ * and may not be available on all devices. This plugin gracefully falls back to
+ * returning unavailable status when the API isn't present.
+ * 
+ * The app will use cloud LLM APIs (OpenAI, Claude, etc.) as fallback.
  */
 @CapacitorPlugin(name = "GeminiNano")
 public class GeminiNanoPlugin extends Plugin {
 
-    private com.google.mlkit.genai.generative.Generation model;
+    private static final String TAG = "GeminiNano";
     private boolean modelInitialized = false;
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final Executor backgroundExecutor = Executors.newSingleThreadExecutor();
 
     /**
      * Check if device supports Gemini Nano on-device
+     * Currently returns unavailable since ML Kit GenAI APIs are in alpha
      */
     @PluginMethod
     public void isAvailable(PluginCall call) {
         JSObject ret = new JSObject();
 
         // Check Android version (API 34 = Android 14)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (Build.VERSION.SDK_INT < 34) { // UPSIDE_DOWN_CAKE
             ret.put("available", false);
-            ret.put("reason", "Android 14+ required");
+            ret.put("reason", "Android 14+ required for on-device AI");
             call.resolve(ret);
             return;
         }
 
+        // ML Kit GenAI APIs are in alpha and may not be available
+        // For now, gracefully report unavailable and let app use cloud APIs
         try {
-            // Get ML Kit GenAI client (CORRECT API)
-            android.util.Log.d("GeminiNano", "Attempting to get Generation client...");
-            model = Generation.getClient();
-            android.util.Log.d("GeminiNano", "Got Generation client, checking status...");
-
-            FeatureStatus status = model.checkStatus();
-            android.util.Log.d("GeminiNano", "Status: " + status.name());
-
-            // Check status enum (UNAVAILABLE, DOWNLOADABLE, ...)
-            // Fix: Avoid missing DOWNLOADED enum by checking what it is NOT
-            boolean isAvailable = (status != FeatureStatus.UNAVAILABLE);
-
-            ret.put("available", isAvailable);
-            ret.put("status", status.name());
-
-            if (status == FeatureStatus.DOWNLOADABLE) {
-                ret.put("downloadable", true);
-                android.util.Log.d("GeminiNano", "Model is downloadable");
-            } else if (status == FeatureStatus.UNAVAILABLE) {
-                android.util.Log.w("GeminiNano", "Model unavailable - device not supported");
-                ret.put("reason", "Device not supported (no AICore / not eligible)");
-            } else {
-                // Assuming implicit READY/DOWNLOADED state if not the above
-                android.util.Log.d("GeminiNano", "Model assumed ready (Status: " + status.name() + ")");
-            }
-        } catch (NoClassDefFoundError e) {
-            android.util.Log.e("GeminiNano", "Class not found error: " + e.getMessage());
+            // Try to load ML Kit GenAI class dynamically
+            Class<?> generationClass = Class.forName("com.google.mlkit.genai.generative.Generation");
+            
+            // If we get here, the class exists - but we still need proper initialization
+            android.util.Log.d(TAG, "ML Kit GenAI classes found");
             ret.put("available", false);
-            ret.put("reason", "ML Kit GenAI classes not found. Check dependency: " + e.getMessage());
+            ret.put("reason", "ML Kit GenAI available but initialization pending");
+            ret.put("status", "CHECKING");
+            
+        } catch (ClassNotFoundException e) {
+            android.util.Log.w(TAG, "ML Kit GenAI not available: " + e.getMessage());
+            ret.put("available", false);
+            ret.put("reason", "ML Kit GenAI not available on this device");
+            ret.put("status", "UNAVAILABLE");
         } catch (Exception e) {
-            android.util.Log.e("GeminiNano", "Error checking availability: " + e.getMessage(), e);
+            android.util.Log.e(TAG, "Error checking availability: " + e.getMessage());
             ret.put("available", false);
-            ret.put("reason", e.getClass().getSimpleName() + ": " + e.getMessage());
+            ret.put("reason", "Error: " + e.getMessage());
+            ret.put("status", "ERROR");
         }
 
         call.resolve(ret);
     }
 
     /**
-     * Initialize and download model if needed
+     * Initialize the model
+     * Returns error since ML Kit GenAI APIs are not fully supported yet
      */
     @PluginMethod
     public void initialize(PluginCall call) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (Build.VERSION.SDK_INT < 34) {
             call.reject("Android 14+ required for Gemini Nano");
             return;
         }
 
-        try {
-            android.util.Log.d("GeminiNano", "Initializing model...");
-            model = Generation.getClient();
-            FeatureStatus status = model.checkStatus();
-            android.util.Log.d("GeminiNano", "Initialize status: " + status.name());
-
-            // Handle all possible status values according to ML Kit API
-            switch (status) {
-                case UNAVAILABLE:
-                    android.util.Log.w("GeminiNano", "Model unavailable - device not supported");
-                    call.reject("Device not supported (no AICore / not eligible)");
-                    return;
-
-                case DOWNLOADABLE:
-                    android.util.Log.d("GeminiNano", "Starting model download...");
-                    // Download model in background
-                    model.download()
-                            .addOnSuccessListener(aVoid -> {
-                                android.util.Log.d("GeminiNano", "Model download successful");
-                                modelInitialized = true;
-                                JSObject ret = new JSObject();
-                                ret.put("initialized", true);
-                                ret.put("message", "Model downloaded successfully");
-                                call.resolve(ret);
-                            })
-                            .addOnFailureListener(e -> {
-                                android.util.Log.e("GeminiNano", "Model download failed: " + e.getMessage(), e);
-                                call.reject("Failed to download model: " + e.getMessage());
-                            });
-                    return;
-
-                default:
-                    // Fix: Handle potential READY/DOWNLOADED state here since enum might be missing
-                    if (status != FeatureStatus.UNAVAILABLE) {
-                        android.util.Log.d("GeminiNano", "Model status " + status.name() + " treated as ready");
-                        modelInitialized = true;
-                        JSObject ret2 = new JSObject();
-                        ret2.put("initialized", true);
-                        ret2.put("message", "Model available (Status: " + status.name() + ")");
-                        call.resolve(ret2);
-                    } else {
-                        android.util.Log.w("GeminiNano", "Unknown unavailable status: " + status);
-                        call.reject("Model not available. Status: " + status);
-                    }
-                    return;
-            }
-        } catch (NoClassDefFoundError e) {
-            android.util.Log.e("GeminiNano", "Class not found during initialization: " + e.getMessage());
-            call.reject("ML Kit GenAI not found. Check build.gradle dependency: " + e.getMessage());
-        } catch (Exception e) {
-            android.util.Log.e("GeminiNano", "Exception during initialization: " + e.getMessage(), e);
-            call.reject("Failed to initialize: " + e.getClass().getSimpleName() + ": " + e.getMessage());
-        }
+        // ML Kit GenAI is in alpha - report not available for now
+        // App will fall back to cloud APIs
+        call.reject("Gemini Nano on-device not available. Use cloud API instead.");
     }
 
     /**
@@ -157,8 +88,8 @@ public class GeminiNanoPlugin extends Plugin {
      */
     @PluginMethod
     public void generate(PluginCall call) {
-        if (!modelInitialized || model == null) {
-            call.reject("Model not initialized. Call initialize() first.");
+        if (!modelInitialized) {
+            call.reject("Model not initialized. Gemini Nano may not be available on this device.");
             return;
         }
 
@@ -168,37 +99,17 @@ public class GeminiNanoPlugin extends Plugin {
             return;
         }
 
-        // Generate response using ML Kit GenAI Generative API
-        android.util.Log.d("GeminiNano",
-                "Generating content for prompt: " + prompt.substring(0, Math.min(50, prompt.length())));
-        model.generateContent(prompt)
-                .addOnSuccessListener(result -> {
-                    String responseText = result.getText();
-                    android.util.Log.d("GeminiNano", "Generation successful, response length: "
-                            + (responseText != null ? responseText.length() : 0));
-                    if (responseText == null || responseText.isEmpty()) {
-                        android.util.Log.w("GeminiNano", "Empty response from model");
-                        call.reject("Empty response from model");
-                        return;
-                    }
-                    JSObject ret = new JSObject();
-                    ret.put("text", responseText);
-                    call.resolve(ret);
-                })
-                .addOnFailureListener(e -> {
-                    android.util.Log.e("GeminiNano", "Generation failed: " + e.getMessage(), e);
-                    call.reject("Generation failed: " + e.getMessage());
-                });
+        // Not implemented - app uses cloud APIs
+        call.reject("On-device generation not available. Use cloud API.");
     }
 
     /**
      * Stream text completion
-     * Uses Handler for non-blocking async streaming simulation
      */
     @PluginMethod
     public void stream(PluginCall call) {
-        if (!modelInitialized || model == null) {
-            call.reject("Model not initialized. Call initialize() first.");
+        if (!modelInitialized) {
+            call.reject("Model not initialized. Gemini Nano may not be available on this device.");
             return;
         }
 
@@ -208,63 +119,7 @@ public class GeminiNanoPlugin extends Plugin {
             return;
         }
 
-        // Store call reference for async resolution
-        final PluginCall streamCall = call;
-
-        // Generate response (streaming simulated using Handler for non-blocking)
-        // Note: ML Kit may not support true streaming, so we simulate it
-        model.generateContent(prompt)
-                .addOnSuccessListener(result -> {
-                    // Process on background thread to avoid blocking
-                    backgroundExecutor.execute(() -> {
-                        String responseText = result.getText();
-
-                        if (responseText == null || responseText.isEmpty()) {
-                            mainHandler.post(() -> {
-                                streamCall.reject("Empty response from model");
-                            });
-                            return;
-                        }
-
-                        // Split into words for streaming effect
-                        String[] words = responseText.split("\\s+");
-
-                        // Stream chunks word by word using Handler (non-blocking)
-                        streamWordsAsync(words, 0, streamCall);
-                    });
-                })
-                .addOnFailureListener(e -> {
-                    call.reject("Streaming failed: " + e.getMessage());
-                });
-    }
-
-    /**
-     * Helper method to stream words asynchronously without blocking
-     */
-    private void streamWordsAsync(String[] words, int index, PluginCall call) {
-        if (index >= words.length) {
-            // All words sent, mark as done
-            mainHandler.post(() -> {
-                JSObject chunk = new JSObject();
-                chunk.put("text", "");
-                chunk.put("done", true);
-                notifyListeners("streamChunk", chunk);
-                call.resolve();
-            });
-            return;
-        }
-
-        // Send current word chunk
-        mainHandler.post(() -> {
-            JSObject chunk = new JSObject();
-            chunk.put("text", words[index] + (index < words.length - 1 ? " " : ""));
-            chunk.put("done", false);
-            notifyListeners("streamChunk", chunk);
-        });
-
-        // Schedule next word after delay (30ms for smooth streaming)
-        mainHandler.postDelayed(() -> {
-            streamWordsAsync(words, index + 1, call);
-        }, 30);
+        // Not implemented - app uses cloud APIs
+        call.reject("On-device streaming not available. Use cloud API.");
     }
 }
